@@ -4,12 +4,17 @@ import random
 import io
 from collections import defaultdict
 
+TEMP_LOG = io.StringIO()
 
-def input_and_save(log_output, string):
-    log_output.write(string)
+def input_and_save(string):
+    TEMP_LOG.write(string)
     inserted_string = input(string)
-    log_output.write(f'{inserted_string}\n')
+    TEMP_LOG.write(f'{inserted_string}\n')
     return inserted_string
+
+def print_and_save(string=''):
+    TEMP_LOG.write(f'{string}\n')
+    print(string)
 
 
 class FileUtils:
@@ -32,7 +37,7 @@ class FlashcardsTally:
         self.cards_tally = {}
         self.cards_stats = {}
 
-    def add_card(self, log_output=None):
+    def add_card(self):
         """
         add — create a new flashcard with a unique term and definition.
         After adding the card, output the message The pair ("term":"definition") has been added,
@@ -46,30 +51,30 @@ class FlashcardsTally:
         term, definition = self.check_add_input_correctness()
         self.cards_tally[term] = definition
         self.cards_stats[term] = 0
-        print(f'The pair ("{term}":"{definition}") has been added.')
+        print_and_save(f'The pair ("{term}":"{definition}") has been added.')
 
-    def check_add_input_correctness(self, log_output=None):
+    def check_add_input_correctness(self):
         term_not_correct = True
-        term = input(f'The card:\n')
+        term = input_and_save(f'The card:\n')
 
         while term_not_correct:
             if term in self.cards_tally.keys():
-                term = input(f'The term "{term}" already exists. Try again:\n')
+                term = input_and_save(f'The term "{term}" already exists. Try again:\n')
             else:
                 term_not_correct = False
 
         definition_not_correct = True
-        definition = input(f'The definition of the card:\n')
+        definition = input_and_save(f'The definition of the card:\n')
 
         while definition_not_correct:
             if definition in self.cards_tally.values():
-                definition = input(f'The definition "{definition}" already exists. Try again:\n')
+                definition = input_and_save(f'The definition "{definition}" already exists. Try again:\n')
             else:
                 definition_not_correct = False
 
         return term, definition
 
-    def remove_card(self, log_output=None):
+    def remove_card(self):
         """
         remove — ask the user for the term of the card they want to remove
         with the message Which card?, and read the user's input from the next line.
@@ -80,15 +85,15 @@ class FlashcardsTally:
         where "card" is the user's input.
         :return:
         """
-        card_term = input(f'Which card?:\n')
+        card_term = input_and_save(f'Which card?:\n')
 
         if self.cards_tally.pop(card_term, None):
             self.cards_tally.pop(card_term, None)
-            print(f'The card has been removed.')
+            print_and_save(f'The card has been removed.')
         else:
-            print(f'Can\'t remove "{card_term}": there is no such card.')
+            print_and_save(f'Can\'t remove "{card_term}": there is no such card.')
 
-    def ask_for_cards(self, log_output=None):
+    def ask_for_cards(self):
         """
         ask — ask the user about the number of cards they want and then prompt them for definitions.
         When the user enters the wrong definition for the requested term,
@@ -99,18 +104,18 @@ class FlashcardsTally:
 
         :return: None
         """
-        asks_number = input('How many times to ask?\n')
+        asks_number = input_and_save('How many times to ask?\n')
         try:
             asks_number = int(asks_number)
             keys_to_check = tuple(self.cards_tally.keys())
 
             for _ in range(asks_number):
                 term = random.choice(keys_to_check)
-                self.ask_for_single_card(term, log_output)
+                self.ask_for_single_card(term)
         except ValueError:
             return False
 
-    def ask_for_single_card(self, key, log_output=None):
+    def ask_for_single_card(self, key):
         """
         Checks if the user's answer is correct.
         If not, it additionally checks whether the same description is associated with the other card.
@@ -123,8 +128,7 @@ class FlashcardsTally:
 
         definition = self.cards_tally.get(key)
 
-        print(f'Print the definition of "{key}":')
-        user_definition = input()
+        user_definition = input_and_save(f'Print the definition of "{key}":\n')
 
         if definition == user_definition:
             output = 'Correct!'
@@ -134,7 +138,7 @@ class FlashcardsTally:
                         user_definition in reversed_cards) else ''
             output = f'Wrong. The right answer is "{definition}"{indication}.'
 
-        print(output)
+        print_and_save(output)
 
     def export_data(self, filename):
         """
@@ -150,7 +154,7 @@ class FlashcardsTally:
             for term, definition in self.cards_tally.items():
                 file.write(f'{term},{definition},{self.cards_stats.get(term)}\n')
 
-    def import_data(self, filename: str, log_output=None):
+    def import_data(self, filename: str):
         """
         import — print the line "File name:", read the user's input from the next line,
         which is the file name, and import all the flashcards written to this file.
@@ -179,13 +183,13 @@ class FlashcardsTally:
         # TODO - Check whether values should be summed - now they are overwritten
         self.cards_stats = {**self.cards_stats, **temp_mistakes_stats}
 
-        print(f'{len(temp_cards)} cards have been loaded.')
+        print_and_save(f'{len(temp_cards)} cards have been loaded.')
 
-    def reset_stats(self, log_output=None):
+    def reset_stats(self):
         self.cards_stats = dict.fromkeys(self.cards_stats, 0)
-        print('Card statistics have been reset.')
+        print_and_save('Card statistics have been reset.')
 
-    def get_hardest_card(self, log_output=None):
+    def get_hardest_card(self):
 
         result = self.check_misses_rating()
 
@@ -211,14 +215,21 @@ class FlashcardsTally:
             return None
         return key, temp_misses_stats[key]
 
-    def log_data(self, log_output=None):
-        print('File name:', file=log_output)
-        file_name = input()
+    @staticmethod
+    def log_data():
+        """
+        log — ask the user where to save the log with the message "File name:",
+        save all the lines that have been input in/output to the console to the file,
+        and print the message The log has been saved.
+        The log isn't cleared after saving it to the file.
+        :return: None
+        """
+        file_name = input_and_save('File name:\n')
 
-        with open(file_name, 'a') as file:
-            file.write(log_output.getvalue())
+        with open(file_name, 'w') as file:
+            file.write(TEMP_LOG.getvalue())
 
-        print('The log has been saved.', file=log_output)
+        print_and_save('The log has been saved.')
 
 
 
@@ -239,7 +250,6 @@ class FlashcardsMenu:
             'log': self.flashcards_tally.log_data,
         }
         self.logs = io.StringIO()
-        self.get_str = FileUtils
 
     def default_fn(self):
         print("incorrect input, please try again.")
@@ -247,37 +257,35 @@ class FlashcardsMenu:
     def run_interface(self):
         # self.logs.write(self.MAIN_MESSAGE)
         # user_choice = input(self.MAIN_MESSAGE)
-        user_choice = input_and_save(self.logs, self.MAIN_MESSAGE)
+        user_choice = input_and_save( self.MAIN_MESSAGE)
 
         while user_choice != self.EXIT:
-            self.menu_options.get(user_choice, self.default_fn)(self.logs)
-            print()
-            user_choice = input_and_save(self.logs, self.MAIN_MESSAGE)
+            self.menu_options.get(user_choice, self.default_fn)()
+            print_and_save()
+            user_choice = input_and_save(self.MAIN_MESSAGE)
 
-        print('Bye bye!')
+        print_and_save('Bye bye!')
+        TEMP_LOG.close()
 
-    def export_to_file(self, log_output=None):
-        filename = input('Filename:\n')
+    def export_to_file(self):
+        filename = input_and_save('Filename:\n')
 
         self.flashcards_tally.export_data(filename)
 
-        print(f'{len(self.flashcards_tally.cards_tally)} cards have been saved.')
+        print_and_save(f'{len(self.flashcards_tally.cards_tally)} cards have been saved.')
 
-    def import_from_file(self, log_output=None):
-        filename = input('Filename:\n')
+    def import_from_file(self):
+        filename = input_and_save('Filename:\n')
 
         check_file_exists = FileUtils(filename).check_file_exists()
 
         if check_file_exists:
             self.flashcards_tally.import_data(filename)
         else:
-            print('File not found.')
+            print_and_save('File not found.')
 
-    def hardest_card_stats(self, log_output=None):
-        print(self.flashcards_tally.get_hardest_card(log_output))
-
-
-
+    def hardest_card_stats(self):
+        print_and_save(self.flashcards_tally.get_hardest_card())
 
 
 def main():
@@ -287,4 +295,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
