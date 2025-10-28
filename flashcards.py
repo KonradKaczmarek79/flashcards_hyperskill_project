@@ -2,7 +2,9 @@ import glob
 import os
 import random
 import io
+import argparse
 from collections import defaultdict
+
 
 TEMP_LOG = io.StringIO()
 
@@ -250,13 +252,15 @@ class FlashcardsMenu:
             'log': self.flashcards_tally.log_data,
         }
         self.logs = io.StringIO()
+        self.in_out_data = self.get_command_line_arguments()
 
     def default_fn(self):
         print("incorrect input, please try again.")
 
     def run_interface(self):
-        # self.logs.write(self.MAIN_MESSAGE)
-        # user_choice = input(self.MAIN_MESSAGE)
+        if self.in_out_data.get('import_from'):
+            self.import_from_file(filename=self.in_out_data.get('import_from'))
+
         user_choice = input_and_save( self.MAIN_MESSAGE)
 
         while user_choice != self.EXIT:
@@ -265,17 +269,24 @@ class FlashcardsMenu:
             user_choice = input_and_save(self.MAIN_MESSAGE)
 
         print_and_save('Bye bye!')
+
+        # if console argument export_to exists save data into the file
+        if self.in_out_data.get('export_to'):
+            self.export_to_file(filename=self.in_out_data.get('export_to'))
+
         TEMP_LOG.close()
 
-    def export_to_file(self):
-        filename = input_and_save('Filename:\n')
+    def export_to_file(self, filename: str | None = None):
+        if filename is None:
+            filename = input_and_save('Filename:\n')
 
         self.flashcards_tally.export_data(filename)
 
         print_and_save(f'{len(self.flashcards_tally.cards_tally)} cards have been saved.')
 
-    def import_from_file(self):
-        filename = input_and_save('Filename:\n')
+    def import_from_file(self, filename: str | None = None):
+        if filename is None:
+            filename = input_and_save('Filename:\n')
 
         check_file_exists = FileUtils(filename).check_file_exists()
 
@@ -287,6 +298,26 @@ class FlashcardsMenu:
     def hardest_card_stats(self):
         print_and_save(self.flashcards_tally.get_hardest_card())
 
+    @staticmethod
+    def get_command_line_arguments() -> dict[str, str | None]:
+        """
+        Creates command line arguments dictionary from command line arguments.
+
+        :return: dict[str, str] with info about input and output file
+        """
+        parser = argparse.ArgumentParser()
+
+        parser.add_argument("--import_from")
+        parser.add_argument("--export_to")
+        args = parser.parse_args()
+
+        in_out_data = {
+            "import_from": args.import_from,
+            "export_to": args.export_to
+        }
+
+        return in_out_data
+
 
 def main():
     flashcards_menu = FlashcardsMenu()
@@ -295,3 +326,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
